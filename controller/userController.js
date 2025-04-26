@@ -24,12 +24,14 @@ const schema = Joi.object({
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
-  // const value = await schema.validateAsync({ username, email, password });
-  const value = await schema.validateAsync({
-    username,
-    email,
-    password,
-  });
+  const value = await schema.validateAsync({ username, email, password });
+
+  // check if username already existed in the database
+  const check_username = await User.findOne({ username });
+  if (check_username) {
+    res.status(constants.BAD_REQUEST);
+    throw new Error("username is been taken!");
+  }
 
   //   check if user is available in the database
   const user_exist = await User.findOne({ email });
