@@ -3,6 +3,19 @@ const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const { constants } = require("../constants");
 const User = require("../models/userModel");
+const Joi = require("joi");
+
+// user validation
+const schema = Joi.object({
+  username: Joi.string().alphanum().min(3).max(30).required(),
+  email: Joi.string()
+    .required()
+    .email({
+      minDomainSegments: 2,
+      tlds: { allow: ["com", "net"] },
+    }),
+  password: Joi.string().pattern(new RegExp("^[a-zA-Z0-9]{3,30}$")).required(),
+});
 
 // @desc Register a new user
 // @route POST /api/users/register
@@ -10,10 +23,13 @@ const User = require("../models/userModel");
 
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
-  if (!username || !email || !password) {
-    res.status(constants.BAD_REQUEST);
-    throw new Error("All field are required!");
-  }
+
+  // const value = await schema.validateAsync({ username, email, password });
+  const value = await schema.validateAsync({
+    username,
+    email,
+    password,
+  });
 
   //   check if user is available in the database
   const user_exist = await User.findOne({ email });
@@ -24,7 +40,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   //   hash the password before saving
   const saltRound = 10;
-  const hashed_password = await bcrypt.hash(password, saltRound);
+  const hashed_password = await bcrypt.hash(value.password, saltRound);
 
   //   create a new user
   const user = await User.create({
@@ -32,6 +48,8 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password: hashed_password,
   });
+
+  console.log("user: ", user);
 
   if (user) {
     res.status(201).json({ id: user._id, email: user.email });
